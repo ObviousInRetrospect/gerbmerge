@@ -95,7 +95,7 @@ xtdef_pat = re.compile(r'^(T\d+)(?:F\d+)?(?:S\d+)?C([0-9.]+)$') # Tool+diameter 
                                                                 # feed/speed (for Protel)
 xtdef2_pat = re.compile(r'^(T\d+)C([0-9.]+)(?:F\d+)?(?:S\d+)?$') # Tool+diameter definition with optional
                                                                 # feed/speed at the end (for OrCAD)
-xzsup_pat = re.compile(r'^INCH(,([LT])Z)?$')      # Leading/trailing zeros INCLUDED
+xzsup_pat = re.compile(r'^INCH(,([LT])Z)?(,[0.]*)?$')      # Leading/trailing zeros INCLUDED
 
 XIgnoreList = ( \
   re.compile(r'^%$'),
@@ -322,8 +322,11 @@ class Job:
     # we use the following Boolean flag as well as the isLastShorthand flag during parsing
     # to manually insert the point X000000Y00000 into the command stream.
     firstFlash = True
-
+    skipNext = False #eagle has line-breaks where certain skips need to ignore the next line too
     for line in fid:
+      if skipNext:
+        skipNext=False
+        continue
       # Get rid of CR characters (0x0D) and leading/trailing blanks
       line = string.replace(line, '\x0D', '').strip()
 
@@ -361,6 +364,10 @@ class Job:
 
       # Ignore %AMOC8* from Eagle for now as it uses a macro parameter, which
       # is not yet supported in GerbMerge.
+      if line == '%AMOC8*':
+        print('SkipNext')
+        skipNext = True
+        continue
       if line[:7]=='%AMOC8*':
         continue
 
@@ -660,7 +667,7 @@ class Job:
       line = string.replace(line, '\x0D', '')
 
 # add support for DipTrace
-      if line[:6]=='METRIC':
+      if line[:6]=='METRIC' or line == 'M71\n': #and eagle
         if (config.Config['measurementunits'] == 'inch'):
           raise RuntimeError, "File %s units do match config file" % fullname
         else:
@@ -670,9 +677,17 @@ class Job:
       if line[:3] == 'T00': # a tidying up that we can ignore
         continue
 # end metric/diptrace support
-
+      if line == 'M71\n': #and eagle
+        if (config.Config['measurementunits'] == 'inch'):
+          raise RuntimeError, "File %s units do match config file" % fullname
+        else:
+        #print "ignoring METRIC directive: " + line
+          match='M71'
       # Protel likes to embed comment lines beginning with ';'
       if line[0]==';':
+        continue
+      
+      if line == 'ICI,OFF\n':
         continue
 
       # Check for leading/trailing zeros included ("INCH,LZ" or "INCH,TZ")

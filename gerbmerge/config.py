@@ -309,6 +309,7 @@ def parseConfigFile(fname, Config=Config, Jobs=Jobs):
 
     for layername in CP.options(jobname):
       if layername[0]=='*' or layername=='boardoutline':
+        print jobname, layername
         fname = CP.get(jobname, layername)
         apfiles.append(fname)
 

@@ -6,3 +6,4 @@ gerbmerge-*.*/
 MANIFEST
 
 /nbproject/private/
+.DS_Store
